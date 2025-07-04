@@ -15,14 +15,13 @@ umi.use(signerIdentity(signer));
 
 (async () => {
     try {
-        //1. Load image
-        //2. Convert image to generic file.
-        //3. Upload image
+        // Loading the image using the absolute path
+        const imagePath = await readFile("/home/tushar/Q3_2025_Builder_TusharPamnani/Solana-Starter/ts/cluster1/namaste_jupiverse.jpg")
 
-        const imagePath = await readFile("/home/tushar/Q3_2025_Builder_TusharPamnani/Solana-Starter/ts/cluster1/jeff.png")
+        // Converting the image to a generic file
+        const image = createGenericFile(imagePath, "image.jpg", {contentType: "image/jpg"})
 
-        const image = createGenericFile(imagePath, "imagee.png", {contentType: "image/png"})
-
+        // Uploading the image to the IRYS network
         const [myUri] = await umi.uploader.upload([image]);
         console.log("Your image URI: ", myUri);
     }

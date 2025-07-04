@@ -15,26 +15,26 @@ umi.use(signerIdentity(signer));
 (async () => {
     try {
         // Follow this JSON structure
-        // https://docs.metaplex.com/programs/token-metadata/changelog/v1.0#json-structure
+        // https://developers.metaplex.com/token-metadata#a-json-standard
 
-        const image = "https://devnet.irys.xyz/2RXGLkxeVnDw99otix6tvJFAbsiRfQAtsRobP2m3fbN9"
+        const image = "https://devnet.irys.xyz/vH7zoiMj4CGsZDys7RYj1d3y8mG9tELnpTSMDeE3Svu" // image uri from nft_image.ts
         const metadata = {
-            name: "Japarjam",
-            symbol: "JEFF",
-            description: "Gotta rug Jeff",
+            name: "Namaste Jupiverse", // name of the nft
+            symbol: "NJH", // symbol of the nft
+            description: "Namaste Jupiverse Hackathon Edition - Hyderabad", // description of the nft
             image,
             attributes: [
-                {trait_type: 'Rug', value: 'Jeff'}
+                {trait_type: 'Hackathon', value: 'Namaste Jupiverse'} // attributes of the nft
             ],
             properties: {
                 files: [
                     {
-                        type: "image/png",
+                        type: "image/jpg",
                         uri: image
                     },
                 ]
             },
-            creators: []
+            creators: [] // creators of the nft
         };
         const myUri = await umi.uploader.uploadJson(metadata);
         console.log("Your metadata URI: ", myUri);
