@@ -2,7 +2,7 @@
 
 This repository contains my submissions and practice code for the **Turbin3**.
 
-![Solana](https://img.shields.io/badge/Solana-Devnet-3ECF8E?logo=solana\&logoColor=white)
+![Solana](https://img.shields.io/badge/Solana-Devnet-3ECF8E?logo=solana&logoColor=white)
 ![Anchor](https://img.shields.io/badge/Anchor-Framework-blueviolet)
 
 ---
@@ -14,6 +14,7 @@ This repository contains my submissions and practice code for the **Turbin3**.
 ├── 01. Turbin3-TS-PreReq
 ├── 02. Turbin3-RS-PreReq
 ├── Solana-Starter
+├── escrow
 ├── README.md
 ```
 
@@ -76,6 +77,28 @@ Key topics & files:
   * `spl_mint.ts` — Mint SPL tokens
 
 Additional utilities & vault interactions are also included under `cluster1`, `prereqs`, `programs`, and `tools`.
+
+---
+
+### Escrow/Vault
+
+This folder contains a Solana smart contract ("vault") built with Anchor, and a suite of tests to demonstrate its usage. The vault program allows users to deposit, withdraw, and close a vault account securely on Solana.
+ 
+**Features:**
+- ✅ Initialize a vault for a user
+- ✅ Deposit SOL into the vault
+- ✅ Withdraw SOL from the vault
+- ✅ Close the vault and reclaim rent
+- ✅ Comprehensive TypeScript tests with Anchor log/error reporting
+
+
+**Instruction summary:**
+- `initialize` — Creates a new vault and state PDA for the user
+- `deposit` — Transfers SOL from the user to the vault PDA
+- `withdraw` — Transfers SOL from the vault PDA back to the user
+- `close` — Closes the vault and returns rent to the user
+
+See [`escrow/README.md`](escrow/README.md) for full details and instructions.
 
 ---
 
