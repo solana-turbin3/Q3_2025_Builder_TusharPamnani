@@ -65,7 +65,7 @@ describe("Vault", () => {
   it("Is Depositing!", async () => {
     try {
       const tx = await program.methods
-        .deposit(new BN(50 * LAMPORTS_PER_SOL)) // Deposit 50 SOL
+        .deposit(new BN(0.5 * LAMPORTS_PER_SOL)) // Deposit 50 SOL
         .accountsPartial({
           user: user.publicKey,
           vault: vaultPDA,
@@ -80,7 +80,7 @@ describe("Vault", () => {
       console.log(`current vault balance: , ${balance / LAMPORTS_PER_SOL} SOL`)
       
       // Assert vault balance increased appropriately
-      assert(balance > 50 * LAMPORTS_PER_SOL, "the deposit has some issue")
+      assert(balance > 0.5 * LAMPORTS_PER_SOL, "the deposit has some issue")
     } catch (error) {
       // Log errors and anchor logs if available
       console.error("Test failed:", error);
@@ -97,7 +97,7 @@ describe("Vault", () => {
   it("Is Withdrawing!", async () => {
     try {
       const tx = await program.methods
-        .withdraw(new BN(50 * LAMPORTS_PER_SOL)) // Withdraw 50 SOL
+        .withdraw(new BN(0.5 * LAMPORTS_PER_SOL)) // Withdraw 50 SOL
         .accountsPartial({
           user: user.publicKey,
           vault: vaultPDA,
@@ -112,7 +112,7 @@ describe("Vault", () => {
       console.log(`current vault balance: , ${balance / LAMPORTS_PER_SOL} SOL`)
 
       // Assert that the vault balance is below the withdrawn amount
-      assert(balance < 50 * LAMPORTS_PER_SOL, "the withdraw has some issue")
+      assert(balance < 0.5 * LAMPORTS_PER_SOL, "the withdraw has some issue")
     } catch (error) {
       // Log errors and anchor logs if available
       console.error("Test failed:", error);
