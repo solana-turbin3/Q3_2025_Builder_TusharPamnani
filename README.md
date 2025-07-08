@@ -83,7 +83,7 @@ Additional utilities & vault interactions are also included under `cluster1`, `p
 ### Escrow/Vault
 
 This folder contains a Solana smart contract ("vault") built with Anchor, and a suite of tests to demonstrate its usage. The vault program allows users to deposit, withdraw, and close a vault account securely on Solana.
-
+ 
 **Features:**
 - ✅ Initialize a vault for a user
 - ✅ Deposit SOL into the vault
