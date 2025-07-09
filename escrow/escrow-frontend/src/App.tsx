@@ -276,15 +276,15 @@ function EscrowApp() {
               <div className="escrow-info-list">
                 <div className="escrow-info-row">
                   <span className="escrow-info-label">Escrow Account:</span>
-                  <span className="escrow-info-value">{escrowInfo.escrowAccount}</span>
+                  <span className="escrow-info-value">{escrowInfo.escrowAccount && escrowInfo.escrowAccount.toBase58 ? escrowInfo.escrowAccount.toBase58() : String(escrowInfo.escrowAccount)}</span>
                 </div>
                 <div className="escrow-info-row">
                   <span className="escrow-info-label">Maker:</span>
-                  <span className="escrow-info-value">{escrowInfo.maker}</span>
+                  <span className="escrow-info-value">{escrowInfo.maker && escrowInfo.maker.toBase58 ? escrowInfo.maker.toBase58() : String(escrowInfo.maker)}</span>
                 </div>
                 <div className="escrow-info-row">
                   <span className="escrow-info-label">Seed:</span>
-                  <span className="escrow-info-value">{escrowInfo.seed}</span>
+                  <span className="escrow-info-value">{escrowInfo.seed && escrowInfo.seed.toString ? escrowInfo.seed.toString() : String(escrowInfo.seed)}</span>
                 </div>
               </div>
             </div>
