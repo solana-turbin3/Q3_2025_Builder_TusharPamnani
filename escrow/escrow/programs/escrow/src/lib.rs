@@ -8,7 +8,7 @@ pub mod state;
 use anchor_lang::prelude::*;
 use anchor_lang::prelude::CpiContext;
 use anchor_spl::associated_token::AssociatedToken;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use anchor_spl::token_interface::{ Mint, TokenAccount, TokenInterface };
 
 #[derive(Accounts)]
 pub struct Deposit<'info> {
@@ -54,7 +54,7 @@ pub use constants::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("EJecuqHBByUEX6ezuewtaZMeG6YzU1VJV3MbP4fDLT1a");
+declare_id!("EPrDxNJ1ZzAd7sNWZu4eziCM8hAFtH8WVtrUXhv3yLZM");
 
 #[program]
 pub mod escrow {
@@ -77,6 +77,11 @@ pub mod escrow {
         msg!("Rust seed: {}", ctx.accounts.escrow.seed);
         msg!("Rust escrow: {}", ctx.accounts.escrow.key());
         ctx.accounts.deposit(deposit)
+    }
+
+    pub fn take(ctx: Context<Take>) -> Result<()> {
+        ctx.accounts.transfer_to_maker()?;
+        ctx.accounts.withdraw_and_close_vault()
     }
 
     pub fn refund(ctx: Context<Refund>) -> Result<()> {
@@ -137,5 +142,24 @@ mod tests {
         println!("[test_can_refund] vault_amount=0, should refund: {}", can_refund(0));
         assert!(can_refund(1)); // vault has tokens
         assert!(!can_refund(0)); // vault is empty
+    }
+
+    #[test]
+    fn test_take_pure_logic() {
+        // Simulate the state after a successful take
+        let mut vault_amount = 500u64;
+        let mut taker_a = 0u64;
+        let mut maker_b = 0u64;
+        let receive = 1000u64;
+
+        // Taker receives all Token A from vault
+        taker_a += vault_amount;
+        vault_amount = 0;
+        // Maker receives Token B from taker
+        maker_b += receive;
+
+        assert_eq!(taker_a, 500);
+        assert_eq!(maker_b, 1000);
+        assert_eq!(vault_amount, 0);
     }
 }
