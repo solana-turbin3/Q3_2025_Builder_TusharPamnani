@@ -9,7 +9,7 @@ pub use constants::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("HGK1LxkXDMbicWM4LyaWC3uW4LgcxBMys65CKVSf24Sy");
+declare_id!("BDHWofSWX2ap9CHYiANE2h7XrYNrkYDnSJ5LT8SR5zrV");
 
 #[program]
 pub mod amm {
@@ -30,4 +30,18 @@ pub mod amm {
     pub fn swap(ctx: Context<Swap>, amount_in: u64, min_amount_out: u64, x_to_y: bool) -> Result<()> {
         ctx.accounts.swap(amount_in, min_amount_out, x_to_y)
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_fee_calculation() {
+        // Example test: replace with real logic
+        let fee = 30u16;
+        assert_eq!(fee, 30);
+    }
+
+    // Add more unit tests for your pure Rust logic here
 }
