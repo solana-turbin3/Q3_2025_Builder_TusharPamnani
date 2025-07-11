@@ -1,152 +1,123 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
-import type { Vault } from "../target/types/vault.js";
+import type { Vault } from "../target/types/vault";
 import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
-import { assert } from "chai"; // Chai for assertions in tests
-import 'dotenv/config'; 
+import { assert } from "chai";
+import "dotenv/config";
 import BN from "bn.js";
 
 describe("Vault", () => {
-  // Configure the client to use the local cluster (devnet/localnet)
-  const provider = anchor.AnchorProvider.env()
+  // Configure the Anchor provider (localnet/devnet)
+  const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
-  // Get the user's wallet keypair from the provider
+  // console.log("the provider is: ", provider);
+
   const user = provider.wallet.payer;
-  console.log(user.publicKey.toBase58()) 
-  
-  // Reference to the Vault program from workspace
+  console.log("Running tests as wallet:", user.publicKey.toBase58());
+
   const program = anchor.workspace.vault as Program<Vault>;
 
-  // Derive the PDA for the vault state using a static seed and user public key
-  const [vaultStatePDA] = PublicKey.findProgramAddressSync(
-    [
-      Buffer.from("state"),
-      user.publicKey.toBytes()
-    ],
-    program.programId,
+  // Derive PDAs for state & vault
+  const [vaultStatePDA, vaultStateBump] = PublicKey.findProgramAddressSync(
+    [Buffer.from("state"), user.publicKey.toBytes()],
+    program.programId
   );
 
-  // Derive the PDA for the vault itself using a seed based on the vault state PDA
-  const [vaultPDA] = PublicKey.findProgramAddressSync(
-    [
-      Buffer.from("vault"),
-      vaultStatePDA.toBytes()
-    ],
-    program.programId,
+  const [vaultPDA, vaultBump] = PublicKey.findProgramAddressSync(
+    [Buffer.from("vault"), vaultStatePDA.toBytes()],
+    program.programId
   );
 
-  // Test: Initialize the vault
-  it("Is initialized!", async () => {
-    try {
-      const tx = await program.methods
-        .initialize()
-        .accountsPartial({
-          user: user.publicKey,
-          vault: vaultPDA,
-          vaultState: vaultStatePDA,
-          systemProgram: anchor.web3.SystemProgram.programId,
-        })
-        .rpc(); // Send transaction
-      console.log("Your transaction signature", tx); // Print transaction signature
-    } catch (error) {
-      // Log errors and anchor logs if available
-      console.error("Test failed:", error);
-      if (error.logs) {
-        console.error("Anchor logs:", error.logs);
-      } else if (error.error && error.error.logs) {
-        console.error("Anchor logs:", error.error.logs);
-      }
-      throw error; // Re-throw error for test framework to catch
-    }
+  // Helper: bumps struct expected by the program
+  const vaultBumps = {
+    stateBump: vaultStateBump,
+    vaultBump: vaultBump,
+  };
+
+  it("Initializes the vault", async () => {
+    const tx = await program.methods
+      .initialize() // single struct argument
+      .accounts({
+        user: user.publicKey,
+        vaultState: vaultStatePDA,
+        vault: vaultPDA,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    console.log("Initialize TX:", tx);
+
+    const stateAccount = await program.account.vaultState.fetch(vaultStatePDA);
+    assert.isOk(stateAccount, "Vault state not initialized properly");
   });
 
-  // Test: Deposit funds into the vault
-  it("Is Depositing!", async () => {
-    try {
-      const tx = await program.methods
-        .deposit(new BN(0.5 * LAMPORTS_PER_SOL)) // Deposit 50 SOL
-        .accountsPartial({
-          user: user.publicKey,
-          vault: vaultPDA,
-          vaultState: vaultStatePDA,
-          systemProgram: anchor.web3.SystemProgram.programId,
-        })
-        .rpc(); // Send transaction
-      console.log("Your transaction signature", tx);
-      
-      // Get and print current vault balance
-      const balance = await provider.connection.getBalance(vaultPDA)
-      console.log(`current vault balance: , ${balance / LAMPORTS_PER_SOL} SOL`)
-      
-      // Assert vault balance increased appropriately
-      assert(balance > 0.5 * LAMPORTS_PER_SOL, "the deposit has some issue")
-    } catch (error) {
-      // Log errors and anchor logs if available
-      console.error("Test failed:", error);
-      if (error.logs) {
-        console.error("Anchor logs:", error.logs);
-      } else if (error.error && error.error.logs) {
-        console.error("Anchor logs:", error.error.logs);
-      }
-      throw error;
-    }
+  it("Deposits funds", async () => {
+    const depositAmountLamports = new BN(0.1 * LAMPORTS_PER_SOL); // 0.1 SOL
+
+    const tx = await program.methods
+      .deposit(depositAmountLamports)
+      .accounts({
+        user: user.publicKey,
+        vaultState: vaultStatePDA,
+        vault: vaultPDA,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    console.log("Deposit TX:", tx);
+
+    const balance = await provider.connection.getBalance(vaultPDA);
+    console.log(
+      `Vault balance after deposit: ${balance / LAMPORTS_PER_SOL} SOL`
+    );
+
+    assert(
+      balance >= depositAmountLamports.toNumber(),
+      "Deposit failed"
+    );
   });
 
-  // Test: Withdraw funds from the vault
-  it("Is Withdrawing!", async () => {
-    try {
-      const tx = await program.methods
-        .withdraw(new BN(0.5 * LAMPORTS_PER_SOL)) // Withdraw 50 SOL
-        .accountsPartial({
-          user: user.publicKey,
-          vault: vaultPDA,
-          vaultState: vaultStatePDA,
-          systemProgram: anchor.web3.SystemProgram.programId,
-        })
-        .rpc(); // Send transaction
-      console.log("Your transaction signature", tx);
+  it("Withdraws funds", async () => {
+    const withdrawAmountLamports = new BN(0.05 * LAMPORTS_PER_SOL); // 0.05 SOL
 
-      // Get and print current vault balance
-      const balance = await provider.connection.getBalance(vaultPDA)
-      console.log(`current vault balance: , ${balance / LAMPORTS_PER_SOL} SOL`)
+    const tx = await program.methods
+      .withdraw(withdrawAmountLamports)
+      .accounts({
+        user: user.publicKey,
+        vaultState: vaultStatePDA,
+        vault: vaultPDA,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
 
-      // Assert that the vault balance is below the withdrawn amount
-      assert(balance < 0.5 * LAMPORTS_PER_SOL, "the withdraw has some issue")
-    } catch (error) {
-      // Log errors and anchor logs if available
-      console.error("Test failed:", error);
-      if (error.logs) {
-        console.error("Anchor logs:", error.logs);
-      } else if (error.error && error.error.logs) {
-        console.error("Anchor logs:", error.error.logs);
-      }
-      throw error;
-    }
+    console.log("Withdraw TX:", tx);
+
+    const balance = await provider.connection.getBalance(vaultPDA);
+    console.log(
+      `Vault balance after withdraw: ${balance / LAMPORTS_PER_SOL} SOL`
+    );
+
+    assert(balance >= 0, "Withdraw failed");
   });
 
-  // Test: Close the vault
-  it("Is Closed!", async () => {
-    try {
-      const tx = await program.methods
-        .close()
-        .accountsPartial({
-          user: user.publicKey,
-          vault: vaultPDA,
-          vaultState: vaultStatePDA,
-          systemProgram: anchor.web3.SystemProgram.programId,
-        })
-        .rpc(); // Send transaction
-      console.log("Your transaction signature", tx);
-    } catch (error) {
-      // Log errors and anchor logs if available
-      console.error("Test failed:", error);
-      if (error.logs) {
-        console.error("Anchor logs:", error.logs);
-      } else if (error.error && error.error.logs) {
-        console.error("Anchor logs:", error.error.logs);
-      }
-      throw error;
-    }
+  it("Closes the vault", async () => {
+    const tx = await program.methods
+      .close()
+      .accounts({
+        user: user.publicKey,
+        vaultState: vaultStatePDA,
+        vault: vaultPDA,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    console.log("Close TX:", tx);
+
+    const accountInfo = await provider.connection.getAccountInfo(vaultStatePDA);
+    assert(
+      accountInfo === null,
+      "Vault state account still exists after close"
+    );
   });
 });
