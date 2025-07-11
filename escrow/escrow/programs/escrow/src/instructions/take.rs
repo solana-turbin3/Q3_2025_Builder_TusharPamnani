@@ -1,3 +1,16 @@
+// This file defines the 'Take' instruction for the escrow program.
+// It handles the process where a taker accepts the escrow offer:
+// - The taker sends Token B to the maker.
+// - The taker receives Token A from the vault (escrow PDA).
+//
+// Key roles:
+// - 'maker': The user who created the escrow offer.
+// - 'taker': The user who accepts the offer.
+// - 'taker_ata_a': The taker's associated token account for Token A (receives escrowed tokens).
+// - 'vault': The escrow PDA's associated token account holding Token A.
+//
+// Note: 'maker' and 'taker_ata_a' are NOT the same entity. The maker is the offer creator; taker_ata_a is the taker's account that receives Token A when the offer is accepted.
+
 use anchor_lang::prelude::*;
 
 use anchor_spl::{
@@ -9,16 +22,24 @@ use crate::Escrow;
 
 #[derive(Accounts)]
 pub struct Take<'info> {
+    /// The taker (person accepting the offer).
     #[account(mut)]
-    pub taker: Signer<'info>, //person accepting the offer
+    pub taker: Signer<'info>,
 
+    /// The maker (person who created the escrow offer).
     #[account(mut)]
-    pub maker: SystemAccount<'info>, //maker of the escrow
+    pub maker: SystemAccount<'info>,
     
-    pub mint_a: InterfaceAccount<'info, Mint>, //what taker receives
+    /// The mint of the token the taker will receive (Token A).
+    pub mint_a: InterfaceAccount<'info, Mint>,
     
-    pub mint_b: InterfaceAccount<'info, Mint>, //what taker sends to maker
-    
+    /// The mint of the token the taker will send to the maker (Token B).
+    pub mint_b: InterfaceAccount<'info, Mint>,
+
+    /// The taker's associated token account for Token A.
+    /// This is where the taker will receive the escrowed tokens.
+    ///
+    /// Note: 'taker_ata_a' belongs to the taker, not the maker.
     #[account(
         init_if_needed,
         payer = taker,
@@ -28,14 +49,16 @@ pub struct Take<'info> {
     )]
     pub taker_ata_a: Box<InterfaceAccount<'info, TokenAccount>>, // ATA for mint_a belonging to taker
     
+    /// The taker's associated token account for Token B (from which they'll pay).
     #[account(
         mut,
         associated_token::mint = mint_b,
         associated_token::authority = taker,
         associated_token::token_program = token_program,
     )]
-    pub taker_ata_b: Box<InterfaceAccount<'info, TokenAccount>>, //taker ATA from which they'll pay in mint_b
+    pub taker_ata_b: Box<InterfaceAccount<'info, TokenAccount>>, // taker ATA from which they'll pay in mint_b
     
+    /// The maker's associated token account for Token B (destination for mint_b).
     #[account(
         init_if_needed,
         payer = taker,
@@ -43,8 +66,9 @@ pub struct Take<'info> {
         associated_token::authority = maker,
         associated_token::token_program = token_program,
     )]
-    pub maker_ata_b: Box<InterfaceAccount<'info, TokenAccount>>, //destination for mint_b 
+    pub maker_ata_b: Box<InterfaceAccount<'info, TokenAccount>>, // destination for mint_b 
     
+    /// The escrow state account (PDA) holding offer details.
     #[account(
         mut,
         close = maker,
@@ -54,25 +78,25 @@ pub struct Take<'info> {
         seeds = [b"escrow", maker.key().as_ref(), escrow.seed.to_le_bytes().as_ref()],
         bump = escrow.bump
     )]
-    escrow: Account<'info, Escrow>, //on chain state 
+    escrow: Account<'info, Escrow>,
     
+    /// The vault ATA (PDA) holding Token A, owned by the escrow PDA.
+    /// This is the source of Token A for the taker.
     #[account(
         mut,
         associated_token::mint = mint_a,
         associated_token::authority = escrow,
         associated_token::token_program = token_program,
     )]
-    pub vault: InterfaceAccount<'info, TokenAccount>, //holds token A tokens locked by maker- taker will get this
+    pub vault: InterfaceAccount<'info, TokenAccount>,
     
-    pub associated_token_program: Program<'info, AssociatedToken>, //ATA
-    
-    pub token_program: Interface<'info, TokenInterface>, // token program to send tokens
-    
-    pub system_program: Program<'info, System>, // system program
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub token_program: Interface<'info, TokenInterface>,
+    pub system_program: Program<'info, System>,
 }
 
 impl<'info> Take<'info> {
-
+    /// Transfers the expected amount of Token B from the taker to the maker.
     pub fn transfer_to_maker(&mut self) -> Result<()> {
         let transfer_accounts = TransferChecked {
             from: self.taker_ata_b.to_account_info(),
@@ -86,6 +110,11 @@ impl<'info> Take<'info> {
         transfer_checked(cpi_ctx, self.escrow.receive, self.mint_b.decimals) //transfers the expected receive amount of token B
     }
 
+    /// Called when the taker accepts the escrow offer (swap success).
+    /// Transfers all Token A from the vault (escrow PDA) to the taker's associated token account for Token A (taker_ata_a).
+    /// Closes the vault account, sending the rent to the maker.
+    ///
+    /// Difference from refund_and_close_vault: Here, the taker receives the escrowed tokens. In refund_and_close_vault, the maker receives them back on cancellation.
     pub fn withdraw_and_close_vault(&mut self) -> Result<()> {
         let signer_seeds: [&[&[u8]]; 1] = [&[
             b"escrow",
@@ -97,7 +126,7 @@ impl<'info> Take<'info> {
         let accounts = TransferChecked {
             from: self.vault.to_account_info(),
             mint: self.mint_a.to_account_info(),
-            to: self.taker_ata_a.to_account_info(),
+            to: self.taker_ata_a.to_account_info(), // taker's ATA for Token A
             authority: self.escrow.to_account_info(),
         };
 
@@ -111,7 +140,7 @@ impl<'info> Take<'info> {
 
         let accounts = CloseAccount {
             account: self.vault.to_account_info(),
-            destination: self.maker.to_account_info(), //rent goes to maker of the account
+            destination: self.maker.to_account_info(), // rent goes to maker of the account
             authority: self.escrow.to_account_info(),
         };
 
