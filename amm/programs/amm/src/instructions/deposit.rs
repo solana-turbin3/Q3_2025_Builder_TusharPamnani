@@ -1,3 +1,17 @@
+// This file defines the 'Deposit' instruction for the AMM program.
+// It allows users to add liquidity to the pool and mint LP tokens representing their share.
+//
+// Key roles:
+// - 'user': The liquidity provider.
+// - 'vault_x' and 'vault_y': The pool's token vaults.
+// - 'mint_lp': The LP token mint.
+// - 'user_lp': The user's LP token account.
+//
+// The deposit flow:
+// - User transfers tokens X and Y to the pool vaults.
+// - The program mints LP tokens to the user, representing their share of the pool.
+// - Proportional math ensures fair share for all liquidity providers.
+
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
@@ -9,11 +23,15 @@ use crate::{ state::Config, error::AmmError };
 
 #[derive(Accounts)]
 pub struct Deposit<'info> {
+    /// The user providing liquidity.
     #[account(mut)]
     pub user: Signer<'info>,
+    /// The mint for token X.
     pub mint_x: Account<'info, Mint>,
+    /// The mint for token Y.
     pub mint_y: Account<'info, Mint>,
 
+    /// The config PDA for the pool.
     #[account(
         has_one = mint_x,
         has_one = mint_y,
@@ -22,6 +40,7 @@ pub struct Deposit<'info> {
     )]
     pub config: Account<'info, Config>,
 
+    /// The pool's vault for token X.
     #[account(
         mut,
         associated_token::mint = mint_x,
@@ -29,6 +48,7 @@ pub struct Deposit<'info> {
     )]
     pub vault_x: Account<'info, TokenAccount>,
 
+    /// The pool's vault for token Y.
     #[account(
         mut,
         associated_token::mint = mint_y,
@@ -36,6 +56,7 @@ pub struct Deposit<'info> {
     )]
     pub vault_y: Account<'info, TokenAccount>,
 
+    /// The LP token mint (PDA, authority = config).
     #[account(
         mut,
         seeds = [b"lp", config.key().as_ref()],
@@ -45,6 +66,7 @@ pub struct Deposit<'info> {
     )]
     pub mint_lp: Account<'info, Mint>,
 
+    /// The user's token X account.
     #[account(
         mut,
         associated_token::mint = mint_x,
@@ -52,6 +74,7 @@ pub struct Deposit<'info> {
     )]
     pub user_x: Account<'info, TokenAccount>,
 
+    /// The user's token Y account.
     #[account(
         mut,
         associated_token::mint = mint_y,
@@ -59,6 +82,7 @@ pub struct Deposit<'info> {
     )]
     pub user_y: Account<'info, TokenAccount>,
 
+    /// The user's LP token account.
     #[account(
         init_if_needed,
         payer = user,
@@ -73,6 +97,7 @@ pub struct Deposit<'info> {
 }
 
 impl<'info> Deposit<'info> {
+    /// Transfers tokens from the user to the pool vaults.
     pub fn deposit_tokens(&mut self, is_x: bool, amount: u64) -> Result<()> {
         let (from, to) = match is_x {
             true => (self.user_x.to_account_info(), self.vault_x.to_account_info()),
@@ -90,6 +115,7 @@ impl<'info> Deposit<'info> {
         transfer(ctx, amount)
     }
 
+    /// Mints LP tokens to the user, using the config PDA as authority.
     pub fn mint_lp_tokens(&mut self, amount: u64) -> Result<()> {
         let cpi_program = self.token_program.to_account_info();
 
@@ -107,6 +133,7 @@ impl<'info> Deposit<'info> {
         mint_to(ctx, amount)
     }
 
+    /// Handles the main deposit logic: proportional math, slippage checks, and LP minting.
     pub fn deposit(&mut self, amount: u64, max_x: u64, max_y: u64) -> Result<()> {
         // Check if pool is locked
         require!(!self.config.locked, AmmError::PoolLocked);

@@ -6,14 +6,14 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-vault = "DYti6i44SscFmSX5mKG8wDmR6SURzR8LHnrtXpPePC1C"
+vault = "heiD65tNjyZVxNARhVVsrsa1HPzFThbaxoAmiyV1vzd"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "https://api.devnet.solana.com"
-wallet = "./Turbin3-wallet.json"
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"

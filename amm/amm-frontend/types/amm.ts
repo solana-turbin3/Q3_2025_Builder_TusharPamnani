@@ -16,7 +16,8 @@ export type Amm = {
     {
       "name": "deposit",
       "docs": [
-        "Deposit tokens into the pool to receive LP tokens"
+        "Deposits tokens into the pool and mints LP tokens to the user.",
+        "The user receives LP tokens representing their share of the pool."
       ],
       "discriminator": [
         242,
@@ -31,23 +32,35 @@ export type Amm = {
       "accounts": [
         {
           "name": "user",
+          "docs": [
+            "The user providing liquidity."
+          ],
           "writable": true,
           "signer": true
         },
         {
           "name": "mintX",
+          "docs": [
+            "The mint for token X."
+          ],
           "relations": [
             "config"
           ]
         },
         {
           "name": "mintY",
+          "docs": [
+            "The mint for token Y."
+          ],
           "relations": [
             "config"
           ]
         },
         {
           "name": "config",
+          "docs": [
+            "The config PDA for the pool."
+          ],
           "pda": {
             "seeds": [
               {
@@ -71,6 +84,9 @@ export type Amm = {
         },
         {
           "name": "vaultX",
+          "docs": [
+            "The pool's vault for token X."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -161,6 +177,9 @@ export type Amm = {
         },
         {
           "name": "vaultY",
+          "docs": [
+            "The pool's vault for token Y."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -251,6 +270,9 @@ export type Amm = {
         },
         {
           "name": "mintLp",
+          "docs": [
+            "The LP token mint (PDA, authority = config)."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -270,6 +292,9 @@ export type Amm = {
         },
         {
           "name": "userX",
+          "docs": [
+            "The user's token X account."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -360,6 +385,9 @@ export type Amm = {
         },
         {
           "name": "userY",
+          "docs": [
+            "The user's token Y account."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -450,6 +478,9 @@ export type Amm = {
         },
         {
           "name": "userLp",
+          "docs": [
+            "The user's LP token account."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -569,7 +600,8 @@ export type Amm = {
     {
       "name": "initialize",
       "docs": [
-        "Initialize a new AMM pool"
+        "Initializes a new AMM pool with the given seed, fee, and optional authority.",
+        "Creates the config, LP mint, and vaults for both tokens."
       ],
       "discriminator": [
         175,
@@ -584,17 +616,29 @@ export type Amm = {
       "accounts": [
         {
           "name": "initializer",
+          "docs": [
+            "The user creating the pool."
+          ],
           "writable": true,
           "signer": true
         },
         {
-          "name": "mintX"
+          "name": "mintX",
+          "docs": [
+            "The mint for token X."
+          ]
         },
         {
-          "name": "mintY"
+          "name": "mintY",
+          "docs": [
+            "The mint for token Y."
+          ]
         },
         {
           "name": "mintLp",
+          "docs": [
+            "The LP token mint (PDA, authority = config)."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -614,6 +658,9 @@ export type Amm = {
         },
         {
           "name": "config",
+          "docs": [
+            "The config PDA for the pool."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -637,6 +684,9 @@ export type Amm = {
         },
         {
           "name": "vaultX",
+          "docs": [
+            "The pool's vault for token X."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -727,6 +777,9 @@ export type Amm = {
         },
         {
           "name": "vaultY",
+          "docs": [
+            "The pool's vault for token Y."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -817,6 +870,9 @@ export type Amm = {
         },
         {
           "name": "tokenProgram",
+          "docs": [
+            "Standard program accounts required for CPI and ATA creation."
+          ],
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
@@ -848,7 +904,8 @@ export type Amm = {
     {
       "name": "swap",
       "docs": [
-        "Swap tokens using the constant product formula"
+        "Swaps tokens using the constant product formula (x*y=k).",
+        "The user provides the input amount, minimum output, and direction (x_to_y)."
       ],
       "discriminator": [
         248,
@@ -863,23 +920,35 @@ export type Amm = {
       "accounts": [
         {
           "name": "user",
+          "docs": [
+            "The user performing the swap."
+          ],
           "writable": true,
           "signer": true
         },
         {
           "name": "mintX",
+          "docs": [
+            "The mint for token X."
+          ],
           "relations": [
             "config"
           ]
         },
         {
           "name": "mintY",
+          "docs": [
+            "The mint for token Y."
+          ],
           "relations": [
             "config"
           ]
         },
         {
           "name": "config",
+          "docs": [
+            "The config PDA for the pool."
+          ],
           "pda": {
             "seeds": [
               {
@@ -903,6 +972,9 @@ export type Amm = {
         },
         {
           "name": "vaultX",
+          "docs": [
+            "The pool's vault for token X."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -993,6 +1065,9 @@ export type Amm = {
         },
         {
           "name": "vaultY",
+          "docs": [
+            "The pool's vault for token Y."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -1083,6 +1158,9 @@ export type Amm = {
         },
         {
           "name": "userX",
+          "docs": [
+            "The user's token X account."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -1173,6 +1251,9 @@ export type Amm = {
         },
         {
           "name": "userY",
+          "docs": [
+            "The user's token Y account."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -1263,6 +1344,9 @@ export type Amm = {
         },
         {
           "name": "tokenProgram",
+          "docs": [
+            "Standard program accounts required for CPI and ATA creation."
+          ],
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
@@ -1286,6 +1370,590 @@ export type Amm = {
         {
           "name": "xToY",
           "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "withdraw",
+      "docs": [
+        "Withdraws liquidity by burning LP tokens and transferring the user's share of the pool tokens.",
+        "The user receives their proportional share of both vault_x and vault_y."
+      ],
+      "discriminator": [
+        183,
+        18,
+        70,
+        156,
+        148,
+        109,
+        161,
+        34
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "docs": [
+            "The user removing liquidity."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mintX",
+          "docs": [
+            "The mint for token X."
+          ],
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "mintY",
+          "docs": [
+            "The mint for token Y."
+          ],
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "config",
+          "docs": [
+            "The config PDA for the pool."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config.seed",
+                "account": "config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vaultX",
+          "docs": [
+            "The pool's vault for token X."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "config"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mintX"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "vaultY",
+          "docs": [
+            "The pool's vault for token Y."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "config"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mintY"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "mintLp",
+          "docs": [
+            "The LP token mint (PDA, authority = config)."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  112
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "userX",
+          "docs": [
+            "The user's token X account."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mintX"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "userY",
+          "docs": [
+            "The user's token Y account."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mintY"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "userLp",
+          "docs": [
+            "The user's LP token account."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mintLp"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associatedTokenProgram",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "lpAmount",
+          "type": "u64"
+        },
+        {
+          "name": "minX",
+          "type": "u64"
+        },
+        {
+          "name": "minY",
+          "type": "u64"
         }
       ]
     }

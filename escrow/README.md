@@ -182,6 +182,28 @@ When you run `yarn test`, you'll see:
 - Closes vault accounts
 ```
 
+### Sample Test Run Output
+
+```
+Running tests as wallet: 4b2ugWQ47HHDzR7D15BjC5RmWNTTQJmj614mamdSorP5
+
+
+  Vault
+Initialize TX: FYRbr4wXHtyFEbgKvuTtKzzFEuSLDHauTQYf7YPAXYBchLd6efPae6VPgd5MwPd7Sm8hPt2SrQYSGQuyApfzsvR
+    ✔ Initializes the vault (348ms)
+Deposit TX: 2A63v519xbkH7qNRzJ3c7Yj5m8zne2F1eTF5myGMByYwa8hwNNB27nSEjQjANfbmCXaYsKubtJ87hAyDPq9ofQ5D
+Vault balance after deposit: 0.1 SOL
+    ✔ Deposits funds (399ms)
+Withdraw TX: 22dkw43R6hTbs8UAsdK784N1ejEsewWbQVe8B9oxiLBE8GA92UYbzvwVabgeFtqcQQMY492mQiohzfAFbApFDtGJ
+Vault balance after withdraw: 0.05 SOL
+    ✔ Withdraws funds (407ms)
+Close TX: 4qPg5LAkSkKKZL4RhGQoyEWwgQQByQ1ZKZyUrY6C9CXcpo257SQkv4RXVG4yUqVjTDZMdWStCCHjp7MNW9gYVUgq
+    ✔ Closes the vault (404ms)
+
+
+  4 passing (2s)
+```
+
 ### Understanding the Code
 
 #### **Initialize Function**
@@ -658,11 +680,12 @@ solana address --keypair <KEYPAIR> --program-id <PROGRAM_ID>
 
 | **Operation** | **Transaction Signature** | **Network** | **How to Get** |
 |---------------|--------------------------|-------------|----------------|
-| Vault Initialize | `[Generated during test]` | Devnet | Run `yarn test` in vault/ |
-| Vault Deposit | `[Generated during test]` | Devnet | Run `yarn test` in vault/ |
-| Vault Withdraw | `[Generated during test]` | Devnet | Run `yarn test` in vault/ |
-| Escrow Create | `[Generated during test]` | Devnet | Run `yarn test` in escrow/ |
-| Token Mint | `[Generated during test]` | Devnet | Run `yarn test` in escrow/ |
+| Vault Initialize | FYRbr4wXHtyFEbgKvuTtKzzFEuSLDHauTQYf7YPAXYBchLd6efPae6VPgd5MwPd7Sm8hPt2SrQYSGQuyApfzsvR | Localnet | Run `anchor test` in vault/ |
+| Vault Deposit | 2A63v519xbkH7qNRzJ3c7Yj5m8zne2F1eTF5myGMByYwa8hwNNB27nSEjQjANfbmCXaYsKubtJ87hAyDPq9ofQ5D | Localnet | Run `anchor test` in vault/ |
+| Vault Withdraw | 22dkw43R6hTbs8UAsdK784N1ejEsewWbQVe8B9oxiLBE8GA92UYbzvwVabgeFtqcQQMY492mQiohzfAFbApFDtGJ | Localnet | Run `anchor test` in vault/ |
+| Vault Close | 4qPg5LAkSkKKZL4RhGQoyEWwgQQByQ1ZKZyUrY6C9CXcpo257SQkv4RXVG4yUqVjTDZMdWStCCHjp7MNW9gYVUgq | Localnet | Run `anchor test` in vault/ |
+| Escrow Create | [Generated during test] | Devnet | Run `yarn test` in escrow/ |
+| Token Mint | [Generated during test] | Devnet | Run `yarn test` in escrow/ |
 
 ### 🔧 Quick Commands to Update This Table
 
@@ -687,3 +710,25 @@ console.log("Transaction:", tx);
 ---
 
 **💡 Tip:** Keep this table updated as you deploy and test your programs. It's especially useful for debugging and sharing with team members! 
+
+## Vault Program Test Results
+
+```
+Running tests as wallet: 4b2ugWQ47HHDzR7D15BjC5RmWNTTQJmj614mamdSorP5
+
+
+  Vault
+Initialize TX: FYRbr4wXHtyFEbgKvuTtKzzFEuSLDHauTQYf7YPAXYBchLd6efPae6VPgd5MwPd7Sm8hPt2SrQYSGQuyApfzsvR
+    ✔ Initializes the vault (348ms)
+Deposit TX: 2A63v519xbkH7qNRzJ3c7Yj5m8zne2F1eTF5myGMByYwa8hwNNB27nSEjQjANfbmCXaYsKubtJ87hAyDPq9ofQ5D
+Vault balance after deposit: 0.1 SOL
+    ✔ Deposits funds (399ms)
+Withdraw TX: 22dkw43R6hTbs8UAsdK784N1ejEsewWbQVe8B9oxiLBE8GA92UYbzvwVabgeFtqcQQMY492mQiohzfAFbApFDtGJ
+Vault balance after withdraw: 0.05 SOL
+    ✔ Withdraws funds (407ms)
+Close TX: 4qPg5LAkSkKKZL4RhGQoyEWwgQQByQ1ZKZyUrY6C9CXcpo257SQkv4RXVG4yUqVjTDZMdWStCCHjp7MNW9gYVUgq
+    ✔ Closes the vault (404ms)
+
+
+  4 passing (2s)
+``` 

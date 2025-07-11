@@ -1,53 +1,73 @@
+//! This program lets users create a personal vault account (PDA) to deposit and withdraw SOL securely.
+//! Each user has their own vault + state PDA.
+
 #![allow(deprecated)]
 #![allow(unexpected_cfgs)]
 
 use anchor_lang::prelude::*;
-use anchor_lang::{system_program::{Transfer, transfer}};
+use anchor_lang::system_program::{transfer, Transfer};
 
-// Declare the program ID for this smart contract
-declare_id!("DYti6i44SscFmSX5mKG8wDmR6SURzR8LHnrtXpPePC1C");
+declare_id!("heiD65tNjyZVxNARhVVsrsa1HPzFThbaxoAmiyV1vzd");
 
 #[program]
 pub mod vault {
     use super::*;
 
-    // Initializes the vault state and vault accounts for a specific user
+    /// Initializes a vault for the calling user.
+    /// This creates two PDAs:
+    ///     - `vault_state`: stores bump seeds.
+    ///     - `vault`: holds SOL.
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         ctx.accounts.initialize(&ctx.bumps)
     }
 
-    // Allows a user to deposit SOL into their vault account
+    /// Deposits `amount` lamports into the user's vault.
     pub fn deposit(ctx: Context<Payment>, amount: u64) -> Result<()> {
         ctx.accounts.deposit(amount)
     }
 
-    // Allows a user to withdraw SOL from their vault account
+    /// Withdraws `amount` lamports from the user's vault back to their wallet.
     pub fn withdraw(ctx: Context<Payment>, amount: u64) -> Result<()> {
         ctx.accounts.withdraw(amount)
     }
 
-    // Allows the user to close their vault and reclaim remaining SOL
+    /// Closes the vault by transferring remaining SOL and reclaiming rent.
     pub fn close(ctx: Context<Close>) -> Result<()> {
         ctx.accounts.close()
     }
 }
 
+/// Initialize context: invoked during `initialize` instruction.
 #[derive(Accounts)]
 pub struct Initialize<'info> {
+    /// The user who pays for account creation and owns the vault.
     #[account(mut)]
-    pub user: Signer<'info>, // User initializing the vault
+    pub user: Signer<'info>,
 
-    // PDA account storing bump seeds for vault and state
+    /// PDA that stores bump seeds.
+    /// this is for initializing the PDA
+    // --------------------
+    // VAULT STATE ACCOUNT (Initialization)
+    // This account is a PDA (Program Derived Address) unique to each user.
+    // - 'init': Creates the account.
+    // - 'payer': User pays for their own state account.
+    // - 'space': Allocates enough space for VaultState struct.
+    // - 'seeds': [b"state", user.key().as_ref()] ensures uniqueness per user.
+    // - 'bump': Anchor finds and stores the bump for PDA security.
+    //
+    // This pattern ensures:
+    // - Only the program can create/sign for this PDA.
+    // - Each user gets a unique, deterministic state account.
     #[account(
-        init,
-        payer = user,
+        init, //to create a new account (initialize)
+        payer = user, // the user will pay the rent for creating this account
         space = VaultState::INIT_SPACE,
-        seeds = [b"state", user.key().as_ref()],
-        bump
+        seeds = [b"state", user.key().as_ref()], // ensures the account is unique per user and can be deterministically derived
+        bump // required for PDA security and allow the program to sign for the account
     )]
     pub vault_state: Account<'info, VaultState>,
 
-    // PDA that will hold the SOL for the vault
+    /// PDA that will hold SOL. Created implicitly on chain by PDA logic.
     #[account(
         mut,
         seeds = [b"vault", vault_state.key().as_ref()],
@@ -55,90 +75,13 @@ pub struct Initialize<'info> {
     )]
     pub vault: SystemAccount<'info>,
 
-    pub system_program: Program<'info, System>, // System program used for account creation & transfers
-}
-
-#[derive(Accounts)]
-pub struct Payment<'info> {
-    #[account(mut)]
-    pub user: Signer<'info>, // User performing deposit or withdrawal
-
-    // Existing vault state PDA derived using the user's key
-    #[account(
-        seeds = [b"state", user.key().as_ref()],
-        bump = vault_state.state_bump
-    )]
-    pub vault_state: Account<'info, VaultState>,
-
-    // Vault PDA holding the SOL, derived from vault state
-    #[account(
-        mut,
-        seeds = [b"vault", vault_state.key().as_ref()],
-        bump = vault_state.vault_bump
-    )]
-    pub vault: SystemAccount<'info>,
-
-    pub system_program: Program<'info, System>, // Required for transfer CPI
-}
-
-impl<'info> Payment<'info> {
-    // Deposits SOL from the user to the vault account
-    pub fn deposit(&mut self, amount: u64) -> Result<()> {
-        let cpl_program: AccountInfo<'_> = self.system_program.to_account_info();
-
-        let cpl_accounts: Transfer<'_> = Transfer {
-            from: self.user.to_account_info(),
-            to: self.vault.to_account_info()
-        };
-
-        let cpl_ctx = CpiContext::new(cpl_program, cpl_accounts);
-
-        transfer(cpl_ctx, amount)
-    }
-
-    // Withdraws SOL from the vault to the user, signed by vault PDA
-    pub fn withdraw(&mut self, amount: u64) -> Result<()> {
-        let cpl_program: AccountInfo<'_> = self.system_program.to_account_info();
-
-        let cpl_accounts: Transfer<'_> = Transfer {
-            from: self.vault.to_account_info(),
-            to: self.user.to_account_info()
-        };
-
-        // Derive signer seeds for vault PDA to authorize the transfer
-        let seeds: &[&[u8]; 3] = &[
-            b"vault",
-            self.vault_state.to_account_info().key.as_ref(),
-            &[self.vault_state.vault_bump],
-        ];
-
-        let signer_seeds: &[&[&[u8]]; 1] = &[&seeds[..]];
-
-        let cpi_ctx = CpiContext::new_with_signer(cpl_program, cpl_accounts, signer_seeds);
-
-        transfer(cpi_ctx, amount)
-    }
+    pub system_program: Program<'info, System>,
 }
 
 impl<'info> Initialize<'info> {
-    // Handles initialization logic: funds vault with rent-exempt balance, saves bump seeds
+    /// Handles initialization logic.
     pub fn initialize(&mut self, bumps: &InitializeBumps) -> Result<()> {
-        // Get the minimum lamports needed for rent exemption
-        let rent_exempt: u64 = Rent::get()?.minimum_balance(self.vault.to_account_info().data_len());
-
-        let cpl_program: AccountInfo<'_> = self.system_program.to_account_info();
-
-        let cpl_accounts: Transfer<'_> = Transfer {
-            from: self.user.to_account_info(),
-            to: self.vault.to_account_info()
-        };
-
-        let cpl_ctx = CpiContext::new(cpl_program, cpl_accounts);
-
-        // Fund vault with rent-exempt amount
-        transfer(cpl_ctx, rent_exempt)?;
-
-        // Save the bump values into the state account
+        // Save bump seeds to the state account.
         self.vault_state.vault_bump = bumps.vault;
         self.vault_state.state_bump = bumps.vault_state;
 
@@ -146,66 +89,153 @@ impl<'info> Initialize<'info> {
     }
 }
 
+/// Payment context: used for deposit & withdraw instructions.
 #[derive(Accounts)]
-pub struct Close<'info> {
+pub struct Payment<'info> {
+    /// The user who owns the vault.
     #[account(mut)]
-    pub user: Signer<'info>, // The owner of the vault
+    pub user: Signer<'info>,
 
-    // Vault state PDA to be closed (refunds lamports to user)
+    /// PDA that holds bump seeds.
+    /// this is to access the PDA
+    // --------------------
+    // VAULT STATE ACCOUNT (Access)
+    // This constraint is used when accessing (not creating) the vault_state PDA.
+    // - 'seeds': Must match the initialization seeds.
+    // - 'bump': Must match the bump stored in the account.
+    //
+    // This ensures you are referencing the correct PDA and prevents spoofing.
     #[account(
-        mut,
         seeds = [b"state", user.key().as_ref()],
-        bump = vault_state.state_bump,
-        close = user,
+        bump = vault_state.state_bump // the bump must match the one stored in the vault_state account (during initializing)
     )]
     pub vault_state: Account<'info, VaultState>,
 
-    // Vault PDA holding lamports, will transfer remaining SOL back to user
+    /// PDA that holds deposited SOL.
     #[account(
         mut,
-        seeds = [b"vault",vault_state.key().as_ref()],
-        bump = vault_state.vault_bump,
+        seeds = [b"vault", vault_state.key().as_ref()],
+        bump = vault_state.vault_bump
     )]
     pub vault: SystemAccount<'info>,
 
-    pub system_program: Program<'info, System>, // For CPI transfer
+    pub system_program: Program<'info, System>,
 }
 
-impl<'info> Close<'info> {
-    // Closes the vault by transferring all remaining SOL back to user
-    pub fn close(&mut self) -> Result<()> {
-        let cpi_program = self.system_program.to_account_info();
+impl<'info> Payment<'info> {
+    /// Deposits SOL from user wallet into vault PDA.
+    pub fn deposit(&mut self, amount: u64) -> Result<()> {
+        let cpi_ctx = CpiContext::new(
+            self.system_program.to_account_info(),
+            Transfer {
+                from: self.user.to_account_info(),
+                to: self.vault.to_account_info(),
+            },
+        );
+        transfer(cpi_ctx, amount)
+    }
 
-        let cpi_account = Transfer {
-            from: self.vault.to_account_info(),
-            to: self.user.to_account_info(),
-        };
-
-        // PDA signer seeds for the vault account
+    /// Withdraws SOL from vault PDA back to user wallet.
+    pub fn withdraw(&mut self, amount: u64) -> Result<()> {
+        // --------------------
+        // PDA SIGNER SEEDS USAGE
+        //
+        // When you need the program to sign as the PDA (e.g., to withdraw or close the vault),
+        // you must provide signer_seeds:
+        //
+        //   let seeds = &[
+        //       b"vault",
+        //       self.vault_state.to_account_info().key.as_ref(),
+        //       &[self.vault_state.vault_bump],
+        //   ];
+        //   let signer_seeds = &[&seeds[..]];
+        //
+        // Use signer_seeds in CpiContext::new_with_signer(...) when the PDA is the authority.
+        //
+        // - Required for: Withdrawals, closing, or any action where the PDA must sign.
+        // - Not required for: Deposits, where the user is the authority and signs the transaction.
+        //
+        // This distinction is critical for security and correct program behavior.
         let seeds = &[
             b"vault",
             self.vault_state.to_account_info().key.as_ref(),
             &[self.vault_state.vault_bump],
         ];
-
         let signer_seeds = &[&seeds[..]];
 
-        // Transfer all remaining lamports to the user
-        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_account, signer_seeds);
-        transfer(cpi_ctx, self.vault.lamports())?;
-        Ok(())
+        let cpi_ctx = CpiContext::new_with_signer(
+            self.system_program.to_account_info(),
+            Transfer {
+                from: self.vault.to_account_info(),
+                to: self.user.to_account_info(),
+            },
+            signer_seeds,
+        );
+        transfer(cpi_ctx, amount)
     }
 }
 
-#[account]
-// Account that stores bump seeds used to sign for vault and state PDAs
-pub struct VaultState {
-    pub vault_bump: u8,      // Bump for vault PDA
-    pub state_bump: u8,      // Bump for state PDA
+/// Close context: closes both vault_state PDA and vault PDA.
+#[derive(Accounts)]
+pub struct Close<'info> {
+    /// User who owns the vault.
+    #[account(mut)]
+    pub user: Signer<'info>,
+
+    /// PDA that stores bump seeds. Closed and rent refunded to user.
+    #[account(
+        mut,
+        seeds = [b"state", user.key().as_ref()],
+        bump = vault_state.state_bump,
+        close = user
+    )]
+    pub vault_state: Account<'info, VaultState>,
+
+    /// PDA holding SOL. Transfers all SOL back to user.
+    #[account(
+        mut,
+        seeds = [b"vault", vault_state.key().as_ref()],
+        bump = vault_state.vault_bump
+    )]
+    pub vault: SystemAccount<'info>,
+
+    pub system_program: Program<'info, System>,
 }
 
-// Custom implementation of the Space trait to define space needed for VaultState
-impl Space for VaultState {
-    // 8 bytes for discriminator + 2 bytes (2 u8 fields)
-    const INIT_SPACE: usize = 8 + 1 * 2;
+impl<'info> Close<'info> {
+    /// Transfers all SOL from vault PDA to user and closes PDAs.
+    pub fn close(&mut self) -> Result<()> {
+        let seeds = &[
+            b"vault",
+            self.vault_state.to_account_info().key.as_ref(),
+            &[self.vault_state.vault_bump],
+        ];
+        let signer_seeds = &[&seeds[..]];
+
+        let cpi_ctx = CpiContext::new_with_signer(
+            self.system_program.to_account_info(),
+            Transfer {
+                from: self.vault.to_account_info(),
+                to: self.user.to_account_info(),
+            },
+            signer_seeds,
+        );
+        transfer(cpi_ctx, self.vault.lamports())
+    }
+}
+
+/// The PDA that stores bump seeds for this user's vault.
+#[account]
+pub struct VaultState {
+    /// Bump for the `vault` PDA.
+    pub vault_bump: u8,
+
+    /// Bump for the `vault_state` PDA itself.
+    pub state_bump: u8,
+}
+
+impl VaultState {
+    /// Space needed for VaultState account.
+    /// Anchor discriminator: 8 bytes + 1 byte for each bump.
+    pub const INIT_SPACE: usize = 8 + 1 + 1;
 }

@@ -1,3 +1,16 @@
+// This file defines the 'Swap' instruction for the AMM program.
+// It allows users to swap between the two pool tokens using the constant product formula (x*y=k).
+//
+// Key roles:
+// - 'user': The swapper.
+// - 'vault_x' and 'vault_y': The pool's token vaults.
+// - 'config': The pool's configuration PDA.
+//
+// The swap flow:
+// - User sends input tokens to the pool vault.
+// - The pool sends output tokens to the user, using the config PDA as authority.
+// - The output amount is calculated using the constant product formula and fee.
+
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
@@ -9,11 +22,14 @@ use crate::{ state::Config, error::AmmError };
 
 #[derive(Accounts)]
 pub struct Swap<'info> {
+    /// The user performing the swap.
     #[account(mut)]
     pub user: Signer<'info>,
+    /// The mint for token X.
     pub mint_x: Account<'info, Mint>,
+    /// The mint for token Y.
     pub mint_y: Account<'info, Mint>,
-
+    /// The config PDA for the pool.
     #[account(
         has_one = mint_x,
         has_one = mint_y,
@@ -21,41 +37,43 @@ pub struct Swap<'info> {
         bump = config.config_bump
     )]
     pub config: Account<'info, Config>,
-
+    /// The pool's vault for token X.
     #[account(
         mut,
         associated_token::mint = mint_x,
         associated_token::authority = config
     )]
     pub vault_x: Account<'info, TokenAccount>,
-
+    /// The pool's vault for token Y.
     #[account(
         mut,
         associated_token::mint = mint_y,
         associated_token::authority = config,
     )]
     pub vault_y: Account<'info, TokenAccount>,
-
+    /// The user's token X account.
     #[account(
         mut,
         associated_token::mint = mint_x,
         associated_token::authority = user
     )]
     pub user_x: Account<'info, TokenAccount>,
-
+    /// The user's token Y account.
     #[account(
         mut,
         associated_token::mint = mint_y,
         associated_token::authority = user,
     )]
     pub user_y: Account<'info, TokenAccount>,
-
+    /// Standard program accounts required for CPI and ATA creation.
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
 }
 
 impl<'info> Swap<'info> {
+    /// Swaps tokens using the constant product formula (x*y=k) and applies the pool fee.
+    /// Transfers input tokens from user to vault, and output tokens from vault to user.
     pub fn swap(&mut self, amount_in: u64, min_amount_out: u64, x_to_y: bool) -> Result<()> {
         require!(!self.config.locked, AmmError::PoolLocked);
         require!(amount_in > 0, AmmError::InvalidAmount);
@@ -69,17 +87,14 @@ impl<'info> Swap<'info> {
 
         // Ensure user has enough tokens
         require!(user_src.amount >= amount_in, AmmError::InsufficientFunds);
-        
         // Ensure vault has enough liquidity
         require!(vault_src.amount > 0 && vault_dst.amount > 0, AmmError::InsufficientLiquidity);
 
         // Calculate output amount using the constant product curve
         let (reserve_in, reserve_out) = (vault_src.amount, vault_dst.amount);
-        
         // Apply fee (assuming fee is in basis points, e.g., 30 = 0.3%)
         let fee = self.config.fee as u128;
         let amount_in_with_fee = (amount_in as u128 * (10_000 - fee)) / 10_000;
-        
         // Calculate output amount using constant product formula: x * y = k
         // amount_out = (amount_in_with_fee * reserve_out) / (reserve_in + amount_in_with_fee)
         let numerator = amount_in_with_fee * reserve_out as u128;
@@ -89,7 +104,6 @@ impl<'info> Swap<'info> {
         // Slippage protection
         require!(amount_out >= min_amount_out, AmmError::SlippageExceeded);
         require!(amount_out > 0, AmmError::InvalidAmount);
-        
         // Ensure vault has enough tokens to fulfill the swap
         require!(vault_dst.amount >= amount_out, AmmError::InsufficientLiquidity);
 

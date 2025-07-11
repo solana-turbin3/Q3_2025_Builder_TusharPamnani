@@ -5,15 +5,15 @@ package_manager = "yarn"
 resolution = true
 skip-lint = false
 
-[programs.devnet]
+[programs.localnet]
 amm = "BDHWofSWX2ap9CHYiANE2h7XrYNrkYDnSJ5LT8SR5zrV"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
-wallet = "/home/tushar/Q3_2025_Builder_TusharPamnani/escrow/escrow/Turbin3-wallet.json"
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
