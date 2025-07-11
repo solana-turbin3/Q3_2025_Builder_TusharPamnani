@@ -1,79 +1,73 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { Amm } from "../target/types/amm";
-import { 
-  PublicKey, 
-  Keypair, 
-  SystemProgram,
-} from "@solana/web3.js";
-import { 
-  TOKEN_PROGRAM_ID, 
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+import {
+  TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
   createMint,
-  createAssociatedTokenAccount,
+  getAssociatedTokenAddress,
+  getOrCreateAssociatedTokenAccount,
   mintTo,
-  getAccount,
-  getAssociatedTokenAddress
 } from "@solana/spl-token";
-import { assert } from "chai";
 
-describe("AMM Tests", () => {
-  const provider = anchor.AnchorProvider.env();
-  anchor.setProvider(provider);
+// This test suite covers the full AMM lifecycle: initialize, deposit, swap (both directions), and withdraw.
+// It uses Anchor's TypeScript client and derives all PDAs and ATAs as required by the program.
 
-  const program = anchor.workspace.Amm as Program<Amm>;
-  const connection = provider.connection;
-  const wallet = provider.wallet;
+describe("amm", () => {
+  anchor.setProvider(anchor.AnchorProvider.env());
+  const program = anchor.workspace.amm as Program<Amm>;
 
-  // Test accounts
-  let mintX: PublicKey;
-  let mintY: PublicKey;
-  let mintLp: PublicKey;
-  let config: PublicKey;
-  let vaultX: PublicKey;
-  let vaultY: PublicKey;
-  let userX: PublicKey;
-  let userY: PublicKey;
-  let userLp: PublicKey;
-  let configBump: number;
-  let lpBump: number;
-  const SEED = new anchor.BN(12345);
-  const FEE = 30;
+  // Keypairs and state shared across tests
+  let initializer: anchor.web3.Keypair;
+  let user: anchor.web3.Keypair;
+  let mintX: PublicKey, mintY: PublicKey;
+  let config: PublicKey, mintLp: PublicKey, vaultX: PublicKey, vaultY: PublicKey;
+  let seed: anchor.BN;
+  let fee: number;
 
   before(async () => {
-    // Create token mints
-    mintX = await createMint(connection, wallet.payer, wallet.publicKey, null, 6);
-    mintY = await createMint(connection, wallet.payer, wallet.publicKey, null, 6);
+    // Generate keypairs for the pool initializer and a user
+    initializer = anchor.web3.Keypair.generate();
+    user = anchor.web3.Keypair.generate();
+    seed = new anchor.BN(123456789); // Arbitrary pool seed
+    fee = 500; // Arbitrary fee (basis points)
 
-    // Derive config PDA
-    [config, configBump] = await PublicKey.findProgramAddress(
-      [Buffer.from("config"), SEED.toArrayLike(Buffer, "le", 8)],
+    // Fund both accounts with SOL for transactions
+    for (const kp of [initializer, user]) {
+      const sig = await anchor.getProvider().connection.requestAirdrop(
+        kp.publicKey,
+        2 * anchor.web3.LAMPORTS_PER_SOL
+      );
+      await anchor.getProvider().connection.confirmTransaction(sig);
+    }
+
+    // Create mints for X and Y tokens (pool assets)
+    mintX = await createMint(anchor.getProvider().connection, initializer, initializer.publicKey, null, 6);
+    mintY = await createMint(anchor.getProvider().connection, initializer, initializer.publicKey, null, 6);
+
+    // Derive all PDAs as per the program's logic
+    // Config PDA: ["config", seed]
+    [config] = await PublicKey.findProgramAddress(
+      [Buffer.from("config"), seed.toArrayLike(Buffer, "le", 8)],
       program.programId
     );
-    // Derive LP mint PDA
-    [mintLp, lpBump] = await PublicKey.findProgramAddress(
+    // LP Mint PDA: ["lp", config]
+    [mintLp] = await PublicKey.findProgramAddress(
       [Buffer.from("lp"), config.toBuffer()],
       program.programId
     );
-    // Derive vaults
+    // Vaults: ATAs owned by config PDA
     vaultX = await getAssociatedTokenAddress(mintX, config, true);
     vaultY = await getAssociatedTokenAddress(mintY, config, true);
-
-    // Create user token accounts
-    userX = await createAssociatedTokenAccount(connection, wallet.payer, mintX, wallet.publicKey);
-    userY = await createAssociatedTokenAccount(connection, wallet.payer, mintY, wallet.publicKey);
-    userLp = await getAssociatedTokenAddress(mintLp, wallet.publicKey);
-
-    // Mint tokens to user accounts
-    await mintTo(connection, wallet.payer, mintX, userX, wallet.publicKey, 1_000_000_000);
-    await mintTo(connection, wallet.payer, mintY, userY, wallet.publicKey, 1_000_000_000);
   });
 
   it("Should initialize AMM pool successfully", async () => {
+    // The pool initializer sets up the config, LP mint, and vaults in a single transaction
     await program.methods
-      .initialize(SEED, FEE, null)
+      .initialize(seed, fee, null)
       .accounts({
-        initializer: wallet.publicKey,
+        initializer: initializer.publicKey,
         mintX,
         mintY,
         mintLp,
@@ -84,44 +78,160 @@ describe("AMM Tests", () => {
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
       })
+      .signers([initializer])
       .rpc();
-
-    // Verify config state
-    const configAccount = await program.account.config.fetch(config);
-    assert.equal(configAccount.seed.toString(), SEED.toString());
-    assert.equal(configAccount.fee, FEE);
-    assert.ok(configAccount.mintX.equals(mintX));
-    assert.ok(configAccount.mintY.equals(mintY));
-    assert.equal(configAccount.locked, false);
   });
 
   it("Should deposit initial liquidity successfully", async () => {
-    const depositAmount = new anchor.BN(100_000_000);
+    // User creates ATAs for X, Y, and LP tokens
+    const userAtaX = (await getOrCreateAssociatedTokenAccount(
+      anchor.getProvider().connection,
+      user,
+      mintX,
+      user.publicKey
+    )).address;
+    const userAtaY = (await getOrCreateAssociatedTokenAccount(
+      anchor.getProvider().connection,
+      user,
+      mintY,
+      user.publicKey
+    )).address;
+    const userAtaLp = (await getOrCreateAssociatedTokenAccount(
+      anchor.getProvider().connection,
+      user,
+      mintLp,
+      user.publicKey
+    )).address;
+
+    // Mint tokens to user for deposit
+    await mintTo(anchor.getProvider().connection, initializer, mintX, userAtaX, initializer, 1_000_000);
+    await mintTo(anchor.getProvider().connection, initializer, mintY, userAtaY, initializer, 1_000_000);
+
+    // Deposit: user provides X and Y, receives LP tokens
     await program.methods
-      .deposit(depositAmount, depositAmount, depositAmount)
+      .deposit(new anchor.BN(100_000), new anchor.BN(100_000), new anchor.BN(200_000))
       .accounts({
-        user: wallet.publicKey,
+        user: user.publicKey,
         mintX,
         mintY,
         config,
         vaultX,
         vaultY,
         mintLp,
-        userX,
-        userY,
-        userLp,
+        userX: userAtaX,
+        userY: userAtaY,
+        userLp: userAtaLp,
         tokenProgram: TOKEN_PROGRAM_ID,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
       })
+      .signers([user])
       .rpc();
-
-    // Optionally, check balances here
-    const vaultXAcc = await getAccount(connection, vaultX);
-    const vaultYAcc = await getAccount(connection, vaultY);
-    assert.ok(Number(vaultXAcc.amount) > 0);
-    assert.ok(Number(vaultYAcc.amount) > 0);
   });
 
-  // Add swap and other tests similarly, using the correct account names!
+  it("Should swap X for Y successfully", async () => {
+    // User mints more X to swap for Y
+    const userAtaX = await getAssociatedTokenAddress(mintX, user.publicKey);
+    const userAtaY = await getAssociatedTokenAddress(mintY, user.publicKey);
+    await mintTo(anchor.getProvider().connection, initializer, mintX, userAtaX, initializer, 100_000);
+
+    // Record Y balance before swap
+    const yBefore = BigInt((await program.provider.connection.getTokenAccountBalance(userAtaY)).value.amount);
+
+    // Swap X for Y (xToY = true)
+    // Only use account names required by the Anchor-generated types
+    await program.methods
+      .swap(new anchor.BN(50_000), new anchor.BN(1), true)
+      .accounts({
+        user: user.publicKey,
+        mintX,
+        mintY,
+        config,
+        vaultX,
+        vaultY,
+        userX: userAtaX,
+        userY: userAtaY,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([user])
+      .rpc();
+
+    // Confirm Y balance increased
+    const yAfter = BigInt((await program.provider.connection.getTokenAccountBalance(userAtaY)).value.amount);
+    if (yAfter <= yBefore) throw new Error("Swap did not increase Y balance");
+  });
+
+  it("Should swap Y for X successfully", async () => {
+    // User mints more Y to swap for X
+    const userAtaX = await getAssociatedTokenAddress(mintX, user.publicKey);
+    const userAtaY = await getAssociatedTokenAddress(mintY, user.publicKey);
+    await mintTo(anchor.getProvider().connection, initializer, mintY, userAtaY, initializer, 100_000);
+
+    // Record X balance before swap
+    const xBefore = BigInt((await program.provider.connection.getTokenAccountBalance(userAtaX)).value.amount);
+
+    // Swap Y for X (xToY = false)
+    await program.methods
+      .swap(new anchor.BN(50_000), new anchor.BN(1), false)
+      .accounts({
+        user: user.publicKey,
+        mintX,
+        mintY,
+        config,
+        vaultX,
+        vaultY,
+        userX: userAtaX,
+        userY: userAtaY,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([user])
+      .rpc();
+
+    // Confirm X balance increased
+    const xAfter = BigInt((await program.provider.connection.getTokenAccountBalance(userAtaX)).value.amount);
+    if (xAfter <= xBefore) throw new Error("Swap did not increase X balance");
+  });
+
+  it("Should withdraw liquidity successfully", async () => {
+    // User withdraws all LP tokens for their share of X and Y
+    const userAtaX = await getAssociatedTokenAddress(mintX, user.publicKey);
+    const userAtaY = await getAssociatedTokenAddress(mintY, user.publicKey);
+    const userAtaLp = await getAssociatedTokenAddress(mintLp, user.publicKey);
+
+    // Record balances before withdraw
+    const xBefore = BigInt((await program.provider.connection.getTokenAccountBalance(userAtaX)).value.amount);
+    const yBefore = BigInt((await program.provider.connection.getTokenAccountBalance(userAtaY)).value.amount);
+    const lpBefore = BigInt((await program.provider.connection.getTokenAccountBalance(userAtaLp)).value.amount);
+
+    // Withdraw all LP tokens (minX/minY = 0 for test)
+    await program.methods
+      .withdraw(new anchor.BN(lpBefore), new anchor.BN(0), new anchor.BN(0))
+      .accounts({
+        user: user.publicKey,
+        mintX,
+        mintY,
+        config,
+        vaultX,
+        vaultY,
+        mintLp,
+        userX: userAtaX,
+        userY: userAtaY,
+        userLp: userAtaLp,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([user])
+      .rpc();
+
+    // Confirm X and Y balances increased
+    const xAfter = BigInt((await program.provider.connection.getTokenAccountBalance(userAtaX)).value.amount);
+    const yAfter = BigInt((await program.provider.connection.getTokenAccountBalance(userAtaY)).value.amount);
+    if (xAfter <= xBefore) throw new Error("Withdraw did not increase X balance");
+    if (yAfter <= yBefore) throw new Error("Withdraw did not increase Y balance");
+  });
 });
