@@ -45,12 +45,25 @@ pub struct Initialize<'info> {
     pub user: Signer<'info>,
 
     /// PDA that stores bump seeds.
+    /// this is for initializing the PDA
+    // --------------------
+    // VAULT STATE ACCOUNT (Initialization)
+    // This account is a PDA (Program Derived Address) unique to each user.
+    // - 'init': Creates the account.
+    // - 'payer': User pays for their own state account.
+    // - 'space': Allocates enough space for VaultState struct.
+    // - 'seeds': [b"state", user.key().as_ref()] ensures uniqueness per user.
+    // - 'bump': Anchor finds and stores the bump for PDA security.
+    //
+    // This pattern ensures:
+    // - Only the program can create/sign for this PDA.
+    // - Each user gets a unique, deterministic state account.
     #[account(
-        init,
-        payer = user,
+        init, //to create a new account (initialize)
+        payer = user, // the user will pay the rent for creating this account
         space = VaultState::INIT_SPACE,
-        seeds = [b"state", user.key().as_ref()],
-        bump
+        seeds = [b"state", user.key().as_ref()], // ensures the account is unique per user and can be deterministically derived
+        bump // required for PDA security and allow the program to sign for the account
     )]
     pub vault_state: Account<'info, VaultState>,
 
@@ -84,9 +97,17 @@ pub struct Payment<'info> {
     pub user: Signer<'info>,
 
     /// PDA that holds bump seeds.
+    /// this is to access the PDA
+    // --------------------
+    // VAULT STATE ACCOUNT (Access)
+    // This constraint is used when accessing (not creating) the vault_state PDA.
+    // - 'seeds': Must match the initialization seeds.
+    // - 'bump': Must match the bump stored in the account.
+    //
+    // This ensures you are referencing the correct PDA and prevents spoofing.
     #[account(
         seeds = [b"state", user.key().as_ref()],
-        bump = vault_state.state_bump
+        bump = vault_state.state_bump // the bump must match the one stored in the vault_state account (during initializing)
     )]
     pub vault_state: Account<'info, VaultState>,
 
@@ -116,6 +137,25 @@ impl<'info> Payment<'info> {
 
     /// Withdraws SOL from vault PDA back to user wallet.
     pub fn withdraw(&mut self, amount: u64) -> Result<()> {
+        // --------------------
+        // PDA SIGNER SEEDS USAGE
+        //
+        // When you need the program to sign as the PDA (e.g., to withdraw or close the vault),
+        // you must provide signer_seeds:
+        //
+        //   let seeds = &[
+        //       b"vault",
+        //       self.vault_state.to_account_info().key.as_ref(),
+        //       &[self.vault_state.vault_bump],
+        //   ];
+        //   let signer_seeds = &[&seeds[..]];
+        //
+        // Use signer_seeds in CpiContext::new_with_signer(...) when the PDA is the authority.
+        //
+        // - Required for: Withdrawals, closing, or any action where the PDA must sign.
+        // - Not required for: Deposits, where the user is the authority and signs the transaction.
+        //
+        // This distinction is critical for security and correct program behavior.
         let seeds = &[
             b"vault",
             self.vault_state.to_account_info().key.as_ref(),
