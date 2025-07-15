@@ -13,8 +13,13 @@ This repository contains my submissions and practice code for the **Turbin3**.
 .
 ├── 01. Turbin3-TS-PreReq
 ├── 02. Turbin3-RS-PreReq
-├── Solana-Starter
-├── escrow
+├── 03. Solana-Starter
+├── 04. Vault
+├── 05. Escrow
+├── 06. AMM
+├── 07. escrow_mike
+├── nft_staking
+├── test-ledger
 ├── README.md
 ```
 
@@ -58,7 +63,7 @@ Key functions:
 
 ---
 
-### Solana-Starter
+### 03. Solana-Starter
 
 This folder contains the starter code provided in the bootcamp for initial classes & exploration.
 
@@ -80,25 +85,101 @@ Additional utilities & vault interactions are also included under `cluster1`, `p
 
 ---
 
-### Escrow/Vault
+### 04. Vault
 
-This folder contains a Solana smart contract ("vault") built with Anchor, and a suite of tests to demonstrate its usage. The vault program allows users to deposit, withdraw, and close a vault account securely on Solana.
- 
+A Solana smart contract (Anchor) for secure SOL vault operations.  
 **Features:**
-- ✅ Initialize a vault for a user
-- ✅ Deposit SOL into the vault
-- ✅ Withdraw SOL from the vault
-- ✅ Close the vault and reclaim rent
-- ✅ Comprehensive TypeScript tests with Anchor log/error reporting
+- Users can initialize a personal vault (using PDAs for security).
+- Deposit and withdraw SOL securely.
+- Close the vault to reclaim rent and remaining funds.
+- Built-in tests demonstrate the full lifecycle: initialize → deposit → withdraw → close.
+- Uses Anchor’s account validation and CPI for secure fund transfers.
 
+**Key Concepts:**
+- **PDAs (Program Derived Addresses):** Used for both vault state and vault accounts, ensuring only the owner can access funds.
+- **Account Structure:** Vault state stores bump seeds for address derivation and security.
 
-**Instruction summary:**
-- `initialize` — Creates a new vault and state PDA for the user
-- `deposit` — Transfers SOL from the user to the vault PDA
-- `withdraw` — Transfers SOL from the vault PDA back to the user
-- `close` — Closes the vault and returns rent to the user
+**How to use:**
+- Build and deploy with Anchor CLI.
+- Run tests to see transaction flows and account balances.
+- See the escrow project’s README for sample commands and test output.
 
-See [`escrow/README.md`](escrow/README.md) for full details and instructions.
+---
+
+### 05. Escrow
+
+A complete Anchor-based escrow system for secure SPL token swaps.  
+**Features:**
+- Users can create, accept, and refund escrow offers for SPL tokens.
+- Two main programs: a simple SOL vault and a token escrow system.
+- Includes a React frontend for interacting with the escrow contract.
+- Comprehensive test suite for both vault and escrow flows.
+
+**Key Concepts:**
+- **Escrow Program:** Enables atomic swaps between two parties, ensuring both sides fulfill their obligations before tokens are released.
+- **Vault Program:** Lets users securely store and manage SOL.
+- **Frontend:** React app for user-friendly interaction with the escrow contract.
+
+**How to use:**
+- Install dependencies and build with Anchor.
+- Deploy to localnet/devnet.
+- Use the frontend or CLI to create and accept escrow offers.
+- Run tests to verify all flows.
+
+---
+
+### 06. AMM
+
+Automated Market Maker (AMM) built with Anchor and a Next.js frontend.  
+**Features:**
+- On-chain liquidity pools for token swaps.
+- Instructions for swap, deposit, withdraw, and pool initialization.
+- Uses the constant product formula for pricing (x*y=k).
+- State management for pool reserves and user positions.
+- Next.js frontend for interacting with the AMM on localhost.
+
+**Key Concepts:**
+- **Constant Product Curve:** Ensures fair pricing and liquidity for swaps.
+- **Anchor Program:** Handles all pool logic, state, and validation.
+- **Frontend:** Next.js app for easy pool interaction and visualization.
+
+**How to use:**
+- Build and deploy the Anchor program.
+- Start the Next.js frontend (`npm run dev` in `amm-frontend`).
+- Interact with pools, provide liquidity, and swap tokens via the UI.
+
+---
+
+### 07. escrow_mike
+
+A modern, modular Anchor escrow implementation for teaching and real-world use.  
+**Features:**
+- Clean, warning-free builds with the latest Solana/Anchor/Rust.
+- Modular handler structure: separate files for make_offer, take_offer, refund_offer, and shared logic.
+- Comprehensive tests using Node.js and Anchor CLI.
+- Designed for clarity and learning, with a full animated walkthrough available.
+
+**Key Concepts:**
+- **Handlers:** Each escrow action is implemented in its own handler for maintainability.
+- **Offer State:** Tracks escrow offers and their status.
+- **Testing:** Easy to run and extend, with clear output and CI integration.
+
+**How to use:**
+- Clone the repo and install dependencies.
+- Run tests with `anchor test` (using the recommended toolchain).
+- Deploy and interact with the program as described in the project README.
+
+---
+
+### nft_staking
+
+NFT staking program with configuration, user, and stake account management. Includes instructions for initializing config, staking, and user setup. Built with Anchor.
+
+---
+
+### test-ledger
+
+Local Solana test validator and ledger files for development and testing.
 
 ---
 
@@ -114,8 +195,70 @@ yarn install
 or for Solana-Starter:
 
 ```bash
-cd Solana-Starter/ts
+cd 03. Solana-Starter/ts
 yarn install
+```
+
+### 04. Vault
+
+```bash
+cd 04.\ Vault
+# Install dependencies
+yarn install
+# Build and deploy the program
+anchor build
+anchor deploy
+# Run tests
+yarn test
+```
+
+### 05. Escrow
+
+```bash
+cd 05.\ Escrow
+# Install dependencies for backend and frontend
+yarn install
+cd escrow-frontend
+yarn install
+# Build and deploy the programs
+cd ..
+anchor build
+anchor deploy
+# Run tests
+yarn test
+# Start the frontend (in escrow-frontend)
+yarn dev
+```
+
+### 06. AMM
+
+```bash
+cd 06.\ AMM
+# Install dependencies for backend and frontend
+yarn install
+cd amm-frontend
+yarn install
+# Build and deploy the Anchor program
+cd ..
+anchor build
+anchor deploy
+# Run tests
+yarn test
+# Start the frontend (in amm-frontend)
+yarn dev
+```
+
+### 07. escrow_mike
+
+```bash
+cd 07.\ escrow_mike
+# Install dependencies
+npm install
+# Build and deploy the program
+anchor build
+anchor deploy
+# Run tests
+anchor test
 ```
 
 ### Run a script
@@ -124,15 +267,7 @@ yarn install
 yarn <script>
 ```
 
-> Replace `<script>` with the desired file name (e.g., `nft_mint`).
-
----
-
-## 📜 Notes
-
-* All tasks were run on **Solana Devnet**.
-* Rust contracts use the Anchor framework.
-* NFT & SPL examples are self-explanatory by filename and demonstrate the basic Solana flows.
+> Replace `<script>` with the desired file name (e.g., `nft_mint`). 
 
 ---
 
