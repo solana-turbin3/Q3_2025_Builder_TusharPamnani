@@ -1,53 +1,54 @@
-use crate::state::*; // add this to use all the values/structs defined in the states directory
+use crate::state::*;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token};
 
 #[derive(Accounts)]
 pub struct InitializeConfig<'info> {
-    // the account that will be initializing the config as well as paying for the account creation
+    // Admin who can initialize the config (pays for account creation)
     #[account(mut)]
     pub admin: Signer<'info>,
 
-    // the global congif PDA that stores the staking parameters
+    // Global config PDA that stores staking parameters
     #[account(
-        init,
-        payer = admin,
-        seeds=[b"config"],
-        bump,
-        space = 8 + StakeConfig::INIT_SPACE,
+        init, // Create new account
+        payer = admin, // Admin pays rent
+        seeds = [b"config"], // Deterministic PDA seed
+        bump, // Store bump seed
+        space = 8 + StakeConfig::INIT_SPACE, // Account size 
     )]
     pub config: Account<'info, StakeConfig>,
 
-    // the reward token mint - created and owned by the config PDA
+    // Reward token mint - created and owned by config PDA
     #[account(
-        init_if_needed, // create a new mint if not created yet
-        payer = admin, // the admin who's paying the rent
-        seeds = [b"rewards", config.key().as_ref()], // pda seeds
-        bump, // store bump seeds
-        mint::decimals = 6, // token decimals
-        mint::authority = config, // config owns the mint authority
+        init, // Create new mint
+        payer = admin, // Admin pays rent
+        seeds = [b"rewards", config.key().as_ref()], // Deterministic PDA seed
+        bump, // Store bump seed
+        mint::decimals = 6, // Token decimals
+        mint::authority = config, // Config owns mint authority
     )]
-    pub rewards_mint: Account<'info, Mint>,
+    pub reward_mint: Account<'info, Mint>,
 
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
+    pub rent: Sysvar<'info, Rent>,
 }
 
 impl<'info> InitializeConfig<'info> {
-    // initialize the global config for staking
     pub fn initialize_config(
         &mut self,
         points_per_stake: u8,
-        max_stake: u8,
-        freeze_perio: u32,
-        bumps: &InitializeConfigBumps,
+        max_unstake: u8,
+        freeze_period: u32,
+        bumps: InitializeConfigBumps,
     ) -> Result<()> {
+        // Store configuration parameters in the config account
         self.config.set_inner(StakeConfig {
-            points_per_stake, // points awarded per nft staked
-            max_stake, // max nft allowed to stake at once
-            freeze_perio, // staking duration
-            rewards_bump: bumps.rewards_mint, // bump for reward mint PDA
-            bump: bumps.config, // bump for config PDA
+            points_per_stake, // Points awarded per staked NFT
+            max_unstake, // Max NFTs unstakeable at once
+            freeze_period, // Required staking duration
+            rewards_bump: bumps.reward_mint, // Bump for reward mint PDA
+            bump: bumps.config, // Bump for config PDA
         });
 
         Ok(())
