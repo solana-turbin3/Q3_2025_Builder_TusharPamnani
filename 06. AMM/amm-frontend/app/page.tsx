@@ -33,8 +33,6 @@ async function createAtaIfNotExist(
         ata,   // ata
         owner, // owner
         mint,  // mint
-        TOKEN_PROGRAM_ID,
-        ASSOCIATED_TOKEN_PROGRAM_ID
       )
     );
     // Log the transaction's instruction program IDs
@@ -75,8 +73,6 @@ function Home() {
   const [userY, setUserY] = useState<PublicKey | null>(null);
   const [userLp, setUserLp] = useState<PublicKey | null>(null);
 
-  // Example: hardcoded seed/fee for demo
-  const SEED = new anchor.BN(12345);
   const FEE = 30;
 
   // Helper: get program instance
@@ -86,100 +82,74 @@ function Home() {
 
   // Pool initialization
   const handleInitialize = async () => {
+
+    console.log('TOKEN_PROGRAM_ID', TOKEN_PROGRAM_ID.toBase58());
+console.log('ASSOCIATED_TOKEN_PROGRAM_ID', ASSOCIATED_TOKEN_PROGRAM_ID.toBase58());
+
     if (!program || !publicKey || !signTransaction) return;
     setStatus("Initializing pool...");
     try {
+      // Use a new random seed for each pool initialization
+      const SEED = new anchor.BN(Date.now());
+
       // Derive PDAs
       const [configPda] = await PublicKey.findProgramAddress([
         Buffer.from("config"),
         SEED.toArrayLike(Buffer, "le", 8),
       ], PROGRAM_ID);
-      setConfig(configPda);
+
       const [mintLpPda] = await PublicKey.findProgramAddress([
         Buffer.from("lp"), configPda.toBuffer()
       ], PROGRAM_ID);
-      setMintLp(mintLpPda);
-      // Create mints for X and Y (manual for browser wallet)
-      const mintXKeypair = Keypair.generate();
-      const mintYKeypair = Keypair.generate();
-      setMintX(mintXKeypair.publicKey);
-      setMintY(mintYKeypair.publicKey);
-      // Create mint accounts and initialize them
-      const lamports = await getMinimumBalanceForRentExemptMint(connection);
-      // Mint X
-      let tx = new Transaction().add(
-        SystemProgram.createAccount({
-          fromPubkey: publicKey,
-          newAccountPubkey: mintXKeypair.publicKey,
-          space: 82,
-          lamports,
-          programId: TOKEN_PROGRAM_ID,
-        }),
-        createInitializeMintInstruction(
-          mintXKeypair.publicKey,
-          6,
-          publicKey,
-          null
-        )
-      );
-      tx.feePayer = publicKey;
-      tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-      tx.partialSign(mintXKeypair);
-      const signedTx = await signTransaction(tx);
-      const txid = await connection.sendRawTransaction(signedTx.serialize());
-      await connection.confirmTransaction(txid, "confirmed");
-      // Mint Y
-      let tx2 = new Transaction().add(
-        SystemProgram.createAccount({
-          fromPubkey: publicKey,
-          newAccountPubkey: mintYKeypair.publicKey,
-          space: 82,
-          lamports,
-          programId: TOKEN_PROGRAM_ID,
-        }),
-        createInitializeMintInstruction(
-          mintYKeypair.publicKey,
-          6,
-          publicKey,
-          null
-        )
-      );
-      tx2.feePayer = publicKey;
-      tx2.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-      tx2.partialSign(mintYKeypair);
-      const signedTx2 = await signTransaction(tx2);
-      const txid2 = await connection.sendRawTransaction(signedTx2.serialize());
-      await connection.confirmTransaction(txid2, "confirmed");
+
+      // Use your pre-created mints
+      const MINT_X = new PublicKey("sDpb1EBh6DL7oJr7XNZzcvKLs5xu6HX4NzSWzzukwYw");
+      const MINT_Y = new PublicKey("4mUARpg1SFLSeH4shiWGbrUAZPHyu79pxowyescTFAEW");
+
+      console.log("-----------------")
+      console.log('TOKEN_PROGRAM_ID', TOKEN_PROGRAM_ID.toBase58());
+console.log('ASSOCIATED_TOKEN_PROGRAM_ID', ASSOCIATED_TOKEN_PROGRAM_ID.toBase58());
+console.log("-----------------")
+
+
+
       // Derive vaults
-      const vaultXAddr = await anchor.utils.token.associatedAddress({ mint: mintXKeypair.publicKey, owner: configPda });
-      const vaultYAddr = await anchor.utils.token.associatedAddress({ mint: mintYKeypair.publicKey, owner: configPda });
-      setVaultX(vaultXAddr);
-      setVaultY(vaultYAddr);
+      const vaultXAddr = await anchor.utils.token.associatedAddress({ mint: MINT_X, owner: configPda });
+      const vaultYAddr = await anchor.utils.token.associatedAddress({ mint: MINT_Y, owner: configPda });
+
       // Create user token accounts (browser wallet safe)
-      const userXAddr = await createAtaIfNotExist(connection, mintXKeypair.publicKey, publicKey, publicKey, signTransaction);
-      const userYAddr = await createAtaIfNotExist(connection, mintYKeypair.publicKey, publicKey, publicKey, signTransaction);
-      setUserX(userXAddr);
-      setUserY(userYAddr);
-      // User LP token account
+      const userXAddr = await createAtaIfNotExist(connection, MINT_X, publicKey, publicKey, signTransaction);
+      const userYAddr = await createAtaIfNotExist(connection, MINT_Y, publicKey, publicKey, signTransaction);
       const userLpAddr = await createAtaIfNotExist(connection, mintLpPda, publicKey, publicKey, signTransaction);
-      setUserLp(userLpAddr);
+
       // Send initialize tx
       await program.methods
-        .initialize(SEED, FEE, null)
-        .accounts({
-          initializer: publicKey,
-          mintX: mintXKeypair.publicKey,
-          mintY: mintYKeypair.publicKey,
-          mintLp: mintLpPda,
-          config: configPda,
-          vaultX: vaultXAddr,
-          vaultY: vaultYAddr,
-          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
-          associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([mintXKeypair, mintYKeypair])
-        .rpc();
+      .initialize(SEED, FEE, null)
+      .accounts({
+        initializer: publicKey,
+        mint_x: MINT_X,
+        mint_y: MINT_Y,
+        mint_lp: mintLpPda,
+        config: configPda,
+        vault_x: vaultXAddr,
+        vault_y: vaultYAddr,
+        token_program: TOKEN_PROGRAM_ID,
+        associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
+        system_program: SystemProgram.programId,
+      })      
+      .rpc();
+
+      // Now update state
+      setMintX(MINT_X);
+      setMintY(MINT_Y);
+      setMintLp(mintLpPda);
+      setConfig(configPda);
+      setVaultX(vaultXAddr);
+      setVaultY(vaultYAddr);
+      setUserX(userXAddr);
+      setUserY(userYAddr);
+      setUserLp(userLpAddr);
+
       setStatus("Pool initialized!");
       setPoolState(await program.account.config.fetch(configPda));
       await fetchUserBalances();
@@ -208,17 +178,17 @@ function Home() {
         .deposit(new anchor.BN(amount), new anchor.BN(amount), new anchor.BN(amount))
         .accounts({
           user: publicKey,
-          mintX,
-          mintY,
-          config,
-          vaultX,
-          vaultY,
-          mintLp,
-          userX,
-          userY,
-          userLp,
-          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
-          associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
+          mintX: mintX!,
+          mintY: mintY!,
+          config: config,
+          vaultX: vaultX!,
+          vaultY: vaultY!,
+          mintLp: mintLp!,
+          userX: userX!,
+          userY: userY!,
+          userLp: userLp!,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
         })
         .rpc();
@@ -250,15 +220,15 @@ function Home() {
         .swap(new anchor.BN(amount), new anchor.BN(0), swapDirection)
         .accounts({
           user: publicKey,
-          mintX,
-          mintY,
-          config,
-          vaultX,
-          vaultY,
-          userX,
-          userY,
-          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
-          associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
+          mintX: mintX!,
+          mintY: mintY!,
+          config: config,
+          vaultX: vaultX!,
+          vaultY: vaultY!,
+          userX: userX!,
+          userY: userY!,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
         })
         .rpc();
@@ -310,7 +280,7 @@ function Home() {
               type="number"
               min="0"
               step="any"
-              className="rounded px-3 py-2 text-black"
+              className="rounded px-3 py-2 text-white"
               placeholder="Deposit Amount"
               value={depositAmount}
               onChange={e => setDepositAmount(e.target.value)}
@@ -331,14 +301,14 @@ function Home() {
               type="number"
               min="0"
               step="any"
-              className="rounded px-3 py-2 text-black"
+              className="rounded px-3 py-2 text-white"
               placeholder="Swap Amount"
               value={swapAmount}
               onChange={e => setSwapAmount(e.target.value)}
               disabled={!connected}
             />
             <select
-              className="rounded px-2 py-2 text-black"
+              className="rounded px-2 py-2 text-white"
               value={swapDirection ? "xToY" : "yToX"}
               onChange={e => setSwapDirection(e.target.value === "xToY")}
               disabled={!connected}
